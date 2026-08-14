@@ -31,69 +31,114 @@ The main goal is to demonstrate how different cloud-native tools can be integrat
 
 The platform is divided into several major layers:
 
-```text
                          ┌─────────────────────┐
                          │      Developer      │
                          └──────────┬──────────┘
                                     │
                                     │ docker push
                                     ▼
-                         ┌─────────────────────┐
-                         │       Harbor        │
-                         │  Container Registry │
-                         └──────────┬──────────┘
-                                    │
-                         PUSH_ARTIFACT event
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │   Event Gateway     │
-                         │        (Go)         │
-                         └──────────┬──────────┘
-                                    │
-                                    │ publish
-                                    ▼
-                         ┌─────────────────────┐
-                         │       Kafka         │
-                         │   harbor-events     │
-                         └───────┬───────┬─────┘
-                                 │       │
-                    consume      │       │ consume
-                                 │       │
-                                 ▼       ▼
-                    ┌───────────────┐  ┌───────────────┐
-                    │ Metadata      │  │ Image Signer  │
-                    │ Worker (Go)   │  │     (Go)      │
-                    └───────┬───────┘  └───────┬───────┘
-                            │                   │
-                            ▼                   ▼
-                    ┌───────────────┐   ┌───────────────┐
-                    │  PostgreSQL   │   │    Cosign      │
-                    │   Metadata    │   │ Image Signing  │
-                    └───────────────┘   └───────┬───────┘
-                                                │
-                                                ▼
-                                             Harbor
-                                               
-                    ┌───────────────────────────────────┐
-                    │          Security Layer            │
-                    │                                   │
-                    │        Harbor + Trivy              │
-                    │        Image Scanning               │
-                    │        Cosign Image Signing        │
-                    └───────────────────────────────────┘
+                    ┌──────────────────────────────┐
+                    │            Harbor            │
+                    │     Container Registry       │
+                    │                              │
+                    │  • Image Storage             │
+                    │  • Webhooks                  │
+                    │  • Trivy Vulnerability Scan  |
+                    │  • SBOM                      │
+                    └──────────────┬───────────────┘
+                                   │
+                                   │ PUSH_ARTIFACT
+                                   │ event
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │        Event Gateway         │
+                    │             Go               │
+                    │                              │
+                    │  Harbor Webhook Receiver     │
+                    └──────────────┬───────────────┘
+                                   │
+                                   │ publish
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │            Kafka             │
+                    │         harbor-events        │
+                    │                              │
+                    │        Event Backbone        │
+                    └──────────────┬───────────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    │                             │
+                 consume                       consume
+                    │                             │
+                    ▼                             ▼
+          ┌───────────────────┐       ┌────────────────────┐
+          │  Metadata Worker  │       │    Image Signer    │
+          │        Go         │       │         Go         │
+          │                   │       │                    │
+          │ Event Processing  │       │  Artifact Signing  │
+          └─────────┬─────────┘       └──────────┬─────────┘
+                    │                            │
+                    │                            │
+                    ▼                            ▼
+          ┌───────────────────┐       ┌────────────────────┐
+          │    PostgreSQL     │       │       Cosign       │
+          │                   │       │                    │
+          │ Metadata Events   │       │  OCI Image Signing │
+          └───────────────────┘       └──────────┬─────────┘
+                                                 │
+                                                 │ signature
+                                                 ▼
+                                      ┌────────────────────┐
+                                      │       Harbor       │
+                                      │                    │
+                                      │ Signed Artifacts   │
+                                      └────────────────────┘
 
 
-                    ┌───────────────────────────────────┐
-                    │         Observability              │
-                    │                                   │
-                    │ Prometheus │ Grafana │ Loki        │
-                    │ Promtail   │ Tempo   │ OTEL        │
-                    └───────────────────────────────────┘
-````
+              ┌─────────────────────────────────────────────┐
+              │              Platform Infrastructure        │
+              │                                             │
+              │  ┌───────────────┐   ┌───────────────────┐ │
+              │  │    Redis      │   │      MinIO        │ │
+              │  │               │   │                   │ │
+              │  │ Cache /       │   │ Object Storage /  │ │
+              │  │ Supporting    │   │ Harbor Storage    │ │
+              │  │ Data          │   │                   │ │
+              │  └───────────────┘   └───────────────────┘ │
+              │                                             │
+              └─────────────────────────────────────────────┘
 
----
 
+              ┌─────────────────────────────────────────────┐
+              │                Security Layer               │
+              │                                             │
+              │  ┌────────────────┐   ┌──────────────────┐ │
+              │  │ Harbor + Trivy │   │ Cosign           │ │
+              │  │                │   │                  │ │
+              │  │ Vulnerability  │   │ Image Signing &  │ │
+              │  │ Scanning       │   │ Verification     │ │
+              │  └────────────────┘   └──────────────────┘ │
+              │                                             │
+              └─────────────────────────────────────────────┘
+
+
+              ┌─────────────────────────────────────────────┐
+              │                Observability                │
+              │                                             │
+              │  ┌────────────┐      ┌────────────┐         │
+              │  │ Prometheus │ ───► │  Grafana   │         │
+              │  └────────────┘      └────────────┘         │
+              │                                             │
+              │  ┌────────────┐      ┌────────────┐         │
+              │  │   Loki     │ ◄─── │  Promtail  │         │
+              │  └────────────┘      └────────────┘         │
+              │                                             │
+              │  ┌────────────┐      ┌────────────┐         │
+              │  │   Tempo    │ ◄─── │    OTEL    │         │
+              │  │            │      │  Collector │         │
+              │  └────────────┘      └────────────┘         │
+              │                                             │
+              └─────────────────────────────────────────────┘
 ## 🔄 Artifact Lifecycle
 
 The intended artifact lifecycle is:
