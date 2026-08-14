@@ -1,8 +1,0 @@
-Interview Questions
-
-Try answering these before our next lesson:
-
-Why do companies use a container registry instead of storing images in Git?
-What is the difference between Harbor and the Docker Registry?
-Why are container images built from layers instead of being one large file?
-If two images share the same base image, what storage optimization does the registry perform?
