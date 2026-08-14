@@ -1,0 +1,21 @@
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+
+# metadata:
+#   name: event-gateway
+#   namespace: artifact-platform
+
+# spec:
+#   ingressClassName: nginx
+
+#   rules:
+#     - host: app.local
+#       http:
+#         paths:
+#           - path: /webhook
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: event-gateway
+#                 port:
+#                   number: 8080

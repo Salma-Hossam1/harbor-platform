@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "event-gateway"
+
+    static_configs:
+      - targets:
+          - platform-event-gateway:8080
+
+  - job_name: metadata-worker
+    static_configs:
+      - targets:
+          - platform-metadata-worker:2112
+
+  - job_name: metadata-api
+    static_configs:
+      - targets:
+          - platform-metadata-api:8081
+
+
+  - job_name: postgres
+
+    static_configs:
+      - targets:
+          - platform-postgres-exporter:9187
+
+  - job_name: redis
+
+    static_configs:
+      - targets:
+          - platform-redis-exporter:9121
+
+
+  - job_name: kafka
+
+    static_configs:
+      - targets:
+          - platform-kafka-exporter:9308

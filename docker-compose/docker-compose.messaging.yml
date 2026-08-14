@@ -1,0 +1,25 @@
+services:
+  kafka:
+    image: apache/kafka:4.1.0
+    container_name: platform-kafka
+
+    restart: unless-stopped
+
+    env_file:
+      - ../config/kafka/kafka.env
+
+    networks:
+      - platform
+
+    ports:
+      - "9092:9092"
+
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+volumes:
+  kafka_data:
+
+networks:
+  platform:
+    external: true

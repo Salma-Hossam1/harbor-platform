@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-verifier
+  namespace: artifact-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-verifier
+  template:
+    metadata:
+      labels:
+        app: image-verifier
+    spec:
+      containers:
+        - name: image-verifier
+          image: image-verifier:dev
+          imagePullPolicy: Never
+
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 2112
+
+          env:
+            - name: PORT
+              value: "8080"
+
+            - name: METRICS_PORT
+              value: "2112"
+
+            - name: HARBOR_REGISTRY
+              value: "host.minikube.internal:8088"
+
+            - name: HARBOR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: image-verifier-harbor
+                  key: username
+
+            - name: HARBOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: image-verifier-harbor
+                  key: password
+
+            - name: COSIGN_PUBLIC_KEY
+              value: "/etc/cosign/cosign.pub"
+
+            - name: COSIGN_BINARY
+              value: "/usr/local/bin/cosign"
+
+            - name: COSIGN_INSECURE_IGNORE_TLOG
+              value: "true"
+
+          volumeMounts:
+            - name: cosign-public-key
+              mountPath: /etc/cosign
+              readOnly: true
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+      volumes:
+        - name: cosign-public-key
+          configMap:
+            name: image-verifier-config

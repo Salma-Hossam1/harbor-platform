@@ -1,0 +1,252 @@
+                         External Client
+                               │
+                         app.local:80
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ External Load       │
+                    │ Balancer             │
+                    │ :80 / :443           │
+                    └──────────┬──────────┘
+                               │
+                    NodeIP:30080 / 30443
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ Ingress Controller   │
+                    │ ingress-nginx        │
+                    └──────────┬──────────┘
+                               │
+                         Ingress rules
+                    ┌──────────┴──────────┐
+                    │                     │
+                 /webhook                /api
+                    │                     │
+                    ▼                     ▼
+             Event Gateway          Metadata API
+                Service                Service
+                    │                     │
+                    ▼                     ▼
+              Event Gateway         Metadata API
+                  Pods                  Pods
+                    │                     │
+                    ▼                     ▼
+                  Kafka              PostgreSQL
+                    ▲                     ▲
+                    │                     │
+              Metadata Worker ────────────┘
+                    │
+                    ▼
+               PostgreSQL
+
+
+Infrastructure:
+    Kafka
+    PostgreSQL
+    Redis
+    MinIO
+
+Observability:
+    Prometheus
+    Grafana
+    Loki
+    Tempo
+    OTEL Collector
+
+
+    #############################################################
+
+    k8s/
+├── namespace/
+│   └── artifact-platform.yaml
+│
+├── infrastructure/
+│   ├── postgres/
+│   │   ├── statefulset.yaml
+│   │   ├── service.yaml
+│   │   ├── configmap.yaml
+│   │   └── secret.yaml
+│   │
+│   ├── kafka/
+│   │   ├── statefulset.yaml
+│   │   ├── service.yaml
+│   │   └── configmap.yaml
+│   │
+│   ├── redis/
+│   │   └── ...
+│   │
+│   └── minio/
+│       └── ...
+│
+├── applications/
+│   ├── event-gateway/
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   └── configmap.yaml
+│   │
+│   ├── metadata-worker/
+│   │   ├── deployment.yaml
+│   │   └── configmap.yaml
+│   │
+│   └── metadata-api/
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       └── configmap.yaml
+│
+├── ingress/
+│   └── platform-ingress.yaml
+│
+└── observability/
+    ├── prometheus/
+    ├── grafana/
+    ├── loki/
+    ├── tempo/
+    └── otel-collector/
+
+
+#################################################
+
+15. Test Kubernetes DNS — important
+
+Now let's verify the thing our Go applications will eventually depend on:
+
+postgres:5432
+
+Run a temporary shell Pod:
+
+kubectl run dns-test \
+  -n artifact-platform \
+  --rm -it \
+  --image=busybox:1.36 \
+  --restart=Never \
+  -- sh
+
+Inside it:
+
+nslookup postgres
+
+You should get an address for the PostgreSQL Service.
+
+Then:
+
+nc -zv postgres 5432
+
+You should get a successful connection.
+
+Exit:
+
+exit
+
+This proves:
+
+Pod
+  │
+  │ DNS query: postgres
+  ▼
+Kubernetes DNS
+  │
+  ▼
+PostgreSQL Service
+  │
+  ▼
+PostgreSQL Pod :5432
+
+That is one of the most important Kubernetes mechanisms your applications will use.
+
+
+
+
+
+######################################################################################################
+
+                              ┌──────────────┐
+                              │  DEVELOPER   │
+                              └──────┬───────┘
+                                     │
+                                     ↓
+                                    GIT
+                                     │
+                                     ↓
+                         ┌──────────────────────┐
+                         │        CI/CD         │
+                         │                      │
+                         │  • Build             │
+                         │  • Test              │
+                         │  • Docker Build      │
+                         │                      │
+                         │  [OPTIONAL]          │
+                         │  • SonarQube         │
+                         │    Code Quality      │
+                         └──────────┬───────────┘
+                                    │
+                              Push Image
+                                    │
+                                    ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                            HARBOR                               │
+│                                                                 │
+│  ┌────────────────┐                                             │
+│  │    Registry    │                                             │
+│  │                │                                             │
+│  │ Container      │                                             │
+│  │ Images         │                                             │
+│  └───────┬────────┘                                             │
+│          │                                                      │
+│          ├──────────────→ Trivy Scanner                         │
+│          │                     │                                │
+│          │                     ↓                                │
+│          │              Vulnerability DB                        │
+│          │                                                      │
+│          ├──────────────→ SBOM                                  │
+│          │                                                      │
+│          └──────────────→ Image Signature                       │
+│                             ↑                                   │
+│                           Cosign                                │
+│                                                                 │
+│                         Webhooks                                │
+└───────────────┬──────────────────────────────┬──────────────────┘
+                │                              │
+                │ PUSH_ARTIFACT                │ SCANNING_COMPLETED
+                ↓                              ↓
+       ┌─────────────────┐             ┌──────────────────┐
+       │  Event Gateway  │             │      CI/CD       │
+       └────────┬────────┘             │  Security Gate   │
+                │                      └────────┬─────────┘
+                ↓                               │
+              Kafka                    ┌────────┴────────┐
+                │                       │                 │
+                ↓                      PASS              FAIL
+       ┌─────────────────┐               │                 │
+       │ Metadata Worker │               │                 │
+       └────────┬────────┘               │          Deployment SKIPPED
+                │                        │                 │
+                ↓                        ↓                 ↓
+          PostgreSQL               Kubernetes       Previous version
+                │                        │             keeps running
+                ↓                        ↓
+         Metadata API              Deployment
+                                         │
+                                         ↓
+                                      Pod/App
+
+
+
+
+
+                 ┌─────────────────────────────────────┐
+                 │            OBSERVABILITY             │
+                 │                                     │
+                 │  Metrics ─────→ Prometheus          │
+                 │  Logs ────────→ Loki                │
+                 │  Traces ──────→ OTEL → Tempo        │
+                 │                                     │
+                 │                    ↓                │
+                 │                 Grafana              │
+                 └─────────────────────────────────────┘
+                              ↑
+                              │
+              Kubernetes + Platform + Infrastructure
+
+
+The complete lifecycle :
+

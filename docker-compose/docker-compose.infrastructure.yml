@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: harbor-postgres
+
+    restart: unless-stopped
+
+    env_file:
+      - ../config/harbor/common.env
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../scripts/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harbor -d harbor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - platform
+
+  redis:
+    image: redis:7-alpine
+    container_name: harbor-redis
+
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - platform
+
+  minio:
+    image: minio/minio:latest
+    container_name: platform-minio
+
+    restart: unless-stopped
+
+    env_file:
+      - ../config/minio/minio.env
+
+    command: server /data --console-address ":9001"
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    volumes:
+      - minio_data:/data
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+    networks:
+      - platform
+
+networks:
+  platform:
+    external: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

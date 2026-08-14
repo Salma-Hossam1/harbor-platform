@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: artifact-platform
+data:
+  01-init.sql: |
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT FROM pg_roles WHERE rolname = 'metadata'
+        ) THEN
+            CREATE ROLE metadata LOGIN PASSWORD 'metadatapass';
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT FROM pg_roles WHERE rolname = 'harbor'
+        ) THEN
+            CREATE ROLE harbor LOGIN PASSWORD 'harborpass';
+        END IF;
+    END
+    $$;
+
+    SELECT 'CREATE DATABASE metadata OWNER metadata'
+    WHERE NOT EXISTS (
+        SELECT FROM pg_database WHERE datname = 'metadata'
+    )\gexec
+
+    SELECT 'CREATE DATABASE harbor OWNER harbor'
+    WHERE NOT EXISTS (
+        SELECT FROM pg_database WHERE datname = 'harbor'
+    )\gexec
+
+    GRANT pg_monitor TO metadata;

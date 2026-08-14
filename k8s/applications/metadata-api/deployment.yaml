@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-api
+  namespace: artifact-platform
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: metadata-api
+
+  template:
+    metadata:
+      labels:
+        app: metadata-api
+
+    spec:
+      containers:
+        - name: metadata-api
+          image: metadata-api:dev 
+          imagePullPolicy: Never
+
+          ports:
+            - name: http
+              containerPort: 8081
+
+          env:
+            - name: PORT
+              value: "8081"
+
+            - name: METADATA_DB_HOST
+              value: "postgres"
+
+            - name: METADATA_DB_PORT
+              value: "5432"
+
+            - name: METADATA_DB_NAME
+              value: "metadata"
+
+            - name: METADATA_DB_USER
+              value: "metadata"
+
+            - name: METADATA_DB_PASSWORD
+              value: "metadatapass"
+
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "otel-collector.monitoring:4317"
+
+

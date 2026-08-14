@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: event-gateway
+  namespace: artifact-platform
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: event-gateway
+
+  template:
+    metadata:
+      labels:
+        app: event-gateway
+
+    spec:
+      containers:
+        - name: event-gateway
+
+          image: event-gateway:dev
+          imagePullPolicy: Never
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          envFrom:
+            - configMapRef:
+                name: event-gateway-config

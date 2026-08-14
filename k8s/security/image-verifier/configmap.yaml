@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  cosign.pub: |
+    -----BEGIN PUBLIC KEY-----
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEedDiqHG1l/C2xDaaGIOm1Cu90MR5
+    R4RYp4ly34xsxD2j9ryAveU2rBtB/vxquRj0O5HZ59RUeZCo0me/5JNpbw==
+    -----END PUBLIC KEY-----
+kind: ConfigMap
+metadata:
+  name: image-verifier-config
+  namespace: artifact-platform

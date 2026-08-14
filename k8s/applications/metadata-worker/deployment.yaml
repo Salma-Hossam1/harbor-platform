@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: metadata-worker
+  namespace: artifact-platform
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: metadata-worker
+
+  template:
+    metadata:
+      labels:
+        app: metadata-worker
+
+    spec:
+      containers:
+        - name: metadata-worker
+          image: metadata-worker:dev
+          imagePullPolicy: Never
+
+          envFrom:
+            - configMapRef:
+                name: metadata-worker-config
+
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
