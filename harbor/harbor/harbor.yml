@@ -2,22 +2,19 @@
 
 # The IP address or hostname to access admin UI and registry service.
 # DO NOT use localhost or 127.0.0.1, because Harbor needs to be accessed by external clients.
-hostname: localhost
+# hostname: localhost
+hostname: harbor.local
 
 # http related config
-http:
-  # port for http, default is 80. If https enabled, this port will redirect to https port
-  port: 8088
+# http:
+#   # port for http, default is 80. If https enabled, this port will redirect to https port
+#   port: 8088
 
 # https related config
-# https:
-#   # https port for harbor, default is 443
-#   port: 443
-#   # The path of cert and key files for nginx
-#   certificate: /your/certificate/path
-#   private_key: /your/private/key/path
-  # enable strong ssl ciphers (default: false)
-  # strong_ssl_ciphers: false
+https:
+  port: 443
+  certificate: /data/cert/harbor.local.crt
+  private_key: /data/cert/harbor.local.key
 
 # # Harbor will set ipv4 enabled only by default if this block is not configured
 # # Otherwise, please uncomment this block to configure your own ip_family stacks

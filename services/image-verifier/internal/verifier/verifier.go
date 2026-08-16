@@ -50,7 +50,7 @@ func (v *Verifier) Verify(ctx context.Context, image string) error {
 	args := []string{
 		"verify",
 		"--key", v.publicKey,
-		"--allow-http-registry",
+		"--registry-cacert", "/etc/harbor-ca/ca.crt",
 		"--registry-username", v.username,
 		"--registry-password", v.password,
 	}

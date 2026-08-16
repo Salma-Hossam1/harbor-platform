@@ -20,6 +20,9 @@ FROM ghcr.io/sigstore/cosign/cosign:v3.0.2 AS cosign
 # ---------- Runtime Stage ----------
 FROM alpine:3.22
 
+RUN apk add --no-cache ca-certificates su-exec && \
+    mkdir -p /usr/local/share/ca-certificates
+
 RUN addgroup -S app && \
     adduser -S app -G app
 
@@ -31,6 +34,9 @@ COPY --from=cosign /ko-app/cosign /usr/local/bin/cosign
 
 RUN chmod +x /usr/local/bin/cosign
 
-USER app
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["./image-signer"]
+EXPOSE 2112
+
+ENTRYPOINT ["/entrypoint.sh"]

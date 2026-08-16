@@ -44,15 +44,18 @@ func main() {
 
 	go func() {
 		logger.Info(
-			"starting HTTP server",
+			"starting HTTPS server",
 			"address", httpServer.Addr,
 		)
 
-		if err := httpServer.ListenAndServe(); err != nil &&
+		if err := httpServer.ListenAndServeTLS(
+			cfg.TLSCertFile,
+			cfg.TLSKeyFile,
+		); err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
 
 			logger.Error(
-				"HTTP server stopped unexpectedly",
+				"HTTPS server stopped unexpectedly",
 				"error", err,
 			)
 

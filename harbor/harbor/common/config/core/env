@@ -4,7 +4,7 @@ _REDIS_URL_CORE=redis://192.168.49.242:6379?idle_timeout_seconds=30
 _REDIS_URL_REG=redis://192.168.49.242:6379/1?idle_timeout_seconds=30
 
 LOG_LEVEL=info
-EXT_ENDPOINT=http://localhost:8088
+EXT_ENDPOINT=https://harbor.local
 DATABASE_TYPE=postgresql
 POSTGRESQL_HOST=192.168.49.241
 POSTGRESQL_PORT=5432
@@ -21,8 +21,8 @@ PORTAL_URL=http://portal:8080
 TOKEN_SERVICE_URL=http://core:8080/service/token
 HARBOR_ADMIN_PASSWORD=Harbor12345
 MAX_JOB_WORKERS=10
-CORE_SECRET=lB6671wAuOY3vGRa
-JOBSERVICE_SECRET=hETU8d2D1fDZnHgO
+CORE_SECRET=S8fOwvf0R4viXLyO
+JOBSERVICE_SECRET=J1fJWjqjmosFPCH2
 WITH_TRIVY=True
 CORE_URL=http://core:8080
 CORE_LOCAL_URL=http://127.0.0.1:8080
@@ -33,15 +33,15 @@ READ_ONLY=false
 RELOAD_KEY=
 REGISTRY_CONTROLLER_URL=http://registryctl:8080
 REGISTRY_CREDENTIAL_USERNAME=harbor_registry_user
-REGISTRY_CREDENTIAL_PASSWORD=afyYLdrTeDiz6usnQG3FJr5dfChhO9e2
-CSRF_KEY=vKPKYDMph9qHWOstedrfrsJqQRvcNULq
-ROBOT_SCANNER_NAME_PREFIX=08JnDlfu
+REGISTRY_CREDENTIAL_PASSWORD=4yaA958oPPafb0pvd4M3PpykFg4ztojf
+CSRF_KEY=k6eApQt9aCZ8eiBxyhXxbLWpgYR3LByb
+ROBOT_SCANNER_NAME_PREFIX=3iNUY6np
 PERMITTED_REGISTRY_TYPES_FOR_PROXY_CACHE=docker-hub,harbor,azure-acr,ali-acr,aws-ecr,google-gcr,docker-registry,github-ghcr,jfrog-artifactory
 REPLICATION_ADAPTER_WHITELIST=ali-acr,aws-ecr,azure-acr,docker-hub,docker-registry,github-ghcr,google-gcr,harbor,huawei-SWR,jfrog-artifactory,tencent-tcr,volcengine-cr
 
 HTTP_PROXY=
 HTTPS_PROXY=
-NO_PROXY=.internal,db,postgresql,core,redis,localhost,jobservice,nginx,trivy-adapter,portal,registryctl,127.0.0.1,.local,registry,exporter,log
+NO_PROXY=registryctl,jobservice,127.0.0.1,localhost,db,log,registry,.local,exporter,core,postgresql,nginx,.internal,trivy-adapter,portal,redis
 
 PORT=8080
 

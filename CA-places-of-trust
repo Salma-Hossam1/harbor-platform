@@ -1,0 +1,374 @@
+احتجنا نحط ال ca.cert فى أكتر من مكان عشان ال trust 
+Yes. This is worth documenting because **the CA trust has to exist in different trust stores depending on who is connecting to `harbor.local`**.
+
+In our setup, we had several different clients:
+
+```text
+                         harbor.local
+                              │
+              ┌───────────────┼────────────────┐
+              │               │                │
+           Host OS          Docker          Minikube/K8s
+              │               │                │
+        curl / browser    docker push      signer/verifier
+              │               │                │
+       OS CA store      Docker CA store    K8s CA/ConfigMap
+```
+
+So copying the CA to one place **does not automatically make every component trust it**.
+
+## Harbor Local CA Trust — Reusable Setup Notes
+
+### 1. CA files
+
+Our local Harbor CA is:
+
+```bash
+~/harbor-pki/ca.crt
+```
+
+Check it:
+
+```bash
+ls -l ~/harbor-pki/ca.crt
+```
+
+If you create another Harbor installation, first identify the CA file generated for that Harbor.
+
+---
+
+### 2. Host OS trust store
+
+This is needed for programs on Ubuntu that use the system CA bundle, such as `curl`.
+
+Install the CA:
+
+```bash
+sudo cp ~/harbor-pki/ca.crt /usr/local/share/ca-certificates/harbor-ca.crt
+sudo update-ca-certificates
+```
+
+Test:
+
+```bash
+curl -v https://harbor.local/ >/dev/null
+```
+
+The important part is:
+
+```text
+SSL certificate verify ok.
+```
+
+and:
+
+```text
+HTTP/1.1 200 OK
+```
+
+You can also test without all the verbose output:
+
+```bash
+curl -sS https://harbor.local/ >/dev/null && echo "Harbor TLS trusted"
+```
+
+---
+
+### 3. Docker trust store
+
+This is **separate from the Ubuntu CA store**.
+
+For Docker to trust a private CA when doing:
+
+```bash
+docker push harbor.local/...
+```
+
+put the CA here:
+
+```bash
+sudo mkdir -p /etc/docker/certs.d/harbor.local
+sudo cp ~/harbor-pki/ca.crt \
+  /etc/docker/certs.d/harbor.local/ca.crt
+```
+
+Verify that it is the same CA:
+
+```bash
+sudo sha256sum /etc/docker/certs.d/harbor.local/ca.crt
+sha256sum ~/harbor-pki/ca.crt
+```
+
+The hashes should be identical.
+
+Then restart Docker:
+
+```bash
+sudo systemctl restart docker
+```
+
+Check:
+
+```bash
+sudo systemctl is-active docker
+```
+
+Expected:
+
+```text
+active
+```
+
+And:
+
+```bash
+docker info >/dev/null && echo "Docker is responding"
+```
+
+Then test the actual registry operation:
+
+```bash
+docker push harbor.local/demo/signer-test:signer-k8s-test
+```
+
+A successful push should end with something like:
+
+```text
+digest: sha256:...
+```
+
+### Important
+
+When we restarted Docker, **all Docker containers temporarily stopped**, including Harbor and the Minikube Docker container.
+
+So after restarting Docker, check:
+
+```bash
+docker compose ps
+minikube status
+```
+
+If Minikube is stopped:
+
+```bash
+minikube start
+```
+
+Also remember that Minikube may require enough disk space before it can start.
+
+---
+
+### 4. Kubernetes / Minikube trust
+
+This is different again.
+
+Your Kubernetes applications such as:
+
+```text
+image-signer
+image-verifier
+```
+
+run **inside containers**.
+
+The Ubuntu CA store:
+
+```text
+/usr/local/share/ca-certificates/
+```
+
+doesn't automatically exist inside those containers.
+
+For our application, we created a Kubernetes ConfigMap containing the Harbor CA:
+
+```bash
+kubectl get configmap harbor-ca -n artifact-platform
+```
+
+The application pod mounts it at:
+
+```text
+/etc/harbor-ca
+```
+
+You can verify:
+
+```bash
+kubectl exec -n artifact-platform deploy/image-signer -- \
+  ls -l /etc/harbor-ca
+```
+
+You should see the CA file.
+
+---
+
+### 5. The signer/verifier also need Cosign to trust/use the CA
+
+This is particularly important.
+
+There are actually **two separate concepts**:
+
+```text
+TLS trust
+   ↓
+Can the application securely connect to https://harbor.local ?
+
+Cosign signing
+   ↓
+Can Cosign push/read the signature artifact from Harbor?
+```
+
+The signer has the Harbor CA mounted because Cosign needs to communicate with Harbor over HTTPS.
+
+So check the deployment:
+
+```bash
+kubectl describe pod -n artifact-platform -l app=image-signer
+```
+
+Look for:
+
+```text
+/etc/harbor-ca
+```
+
+and:
+
+```text
+harbor-ca
+```
+
+---
+
+## 6. Verify Harbor certificate itself
+
+From the host:
+
+```bash
+openssl s_client \
+  -connect harbor.local:443 \
+  -servername harbor.local \
+  -CAfile ~/harbor-pki/ca.crt \
+  </dev/null
+```
+
+At the end, you want:
+
+```text
+Verify return code: 0 (ok)
+```
+
+This is a very useful test because it directly checks:
+
+```text
+harbor.local certificate
+        ↓
+signed by our CA
+        ↓
+CA file is trusted
+```
+
+---
+
+## 7. Verify the hostname
+
+The certificate must contain:
+
+```text
+harbor.local
+```
+
+as a SAN.
+
+Check:
+
+```bash
+openssl s_client \
+  -connect harbor.local:443 \
+  -servername harbor.local \
+  -CAfile ~/harbor-pki/ca.crt \
+  </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -ext subjectAltName
+```
+
+You should see something containing:
+
+```text
+DNS:harbor.local
+```
+
+This matters because **trusting the CA is not enough**. The certificate also has to match the hostname you're connecting to.
+
+---
+
+# 8. Quick checklist for creating another local Harbor
+
+When you create another local Harbor with a private CA, think:
+
+```text
+[1] Generate/use Harbor CA
+        │
+        ├── ~/harbor-pki/ca.crt
+        │
+        ├── [2] Ubuntu host trust
+        │       /usr/local/share/ca-certificates/
+        │
+        ├── [3] Docker trust
+        │       /etc/docker/certs.d/<harbor-hostname>/ca.crt
+        │
+        ├── [4] Kubernetes trust
+        │       ConfigMap harbor-ca
+        │
+        └── [5] Application/Cosign
+                mount CA into signer/verifier
+```
+
+And verify each layer separately:
+
+```bash
+# Host
+curl -v https://harbor.local/
+
+# Certificate
+openssl s_client \
+  -connect harbor.local:443 \
+  -servername harbor.local \
+  -CAfile ~/harbor-pki/ca.crt \
+  </dev/null
+
+# Docker
+docker push harbor.local/demo/test:tag
+
+# Kubernetes CA
+kubectl get configmap harbor-ca -n artifact-platform
+
+# Application mount
+kubectl exec -n artifact-platform deploy/image-signer -- \
+  ls -l /etc/harbor-ca
+```
+
+### The key thing to remember
+
+**Don't think of "the machine trusts my CA" as one global setting.**
+
+Think:
+
+> **Every TLS client needs access to the CA in the trust store/container where that client runs.**
+
+In our project:
+
+```text
+Ubuntu curl
+    → Ubuntu CA store
+
+Docker CLI / Docker Engine
+    → /etc/docker/certs.d/harbor.local/ca.crt
+
+Kubernetes workloads
+    → Kubernetes Secret/ConfigMap + mounted CA
+
+Cosign inside image-signer
+    → CA available inside signer container
+```
+
+That's why we had to put the CA in several places.

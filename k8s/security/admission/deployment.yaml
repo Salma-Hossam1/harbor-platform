@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-webhook
+  namespace: artifact-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admission-webhook
+  template:
+    metadata:
+      labels:
+        app: admission-webhook
+    spec:
+      containers:
+        - name: admission-webhook
+          image: admission-webhook:dev
+          imagePullPolicy: Never
+
+          ports:
+            - name: https
+              containerPort: 8080
+
+          env:
+            - name: PORT
+              value: "8080"
+
+            - name: VERIFIER_URL
+              value: "http://image-verifier:8080"
+
+            - name: TLS_CERT_FILE
+              value: "/tls/tls.crt"
+
+            - name: TLS_KEY_FILE
+              value: "/tls/tls.key"
+
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+
+      volumes:
+        - name: tls
+          secret:
+            secretName: admission-webhook-tls

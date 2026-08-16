@@ -20,4 +20,4 @@ SCANNER_TRIVY_INSECURE=False
 SCANNER_TRIVY_TIMEOUT=5m0s
 HTTP_PROXY=
 HTTPS_PROXY=
-NO_PROXY=.internal,db,postgresql,core,redis,localhost,jobservice,nginx,trivy-adapter,portal,registryctl,127.0.0.1,.local,registry,exporter,log
+NO_PROXY=registryctl,jobservice,127.0.0.1,localhost,db,log,registry,.local,exporter,core,postgresql,nginx,.internal,trivy-adapter,portal,redis

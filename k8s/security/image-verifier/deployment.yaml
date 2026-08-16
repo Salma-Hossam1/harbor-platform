@@ -32,7 +32,7 @@ spec:
               value: "2112"
 
             - name: HARBOR_REGISTRY
-              value: "host.minikube.internal:8088"
+              value: "harbor.local"
 
             - name: HARBOR_USERNAME
               valueFrom:
@@ -60,6 +60,10 @@ spec:
               mountPath: /etc/cosign
               readOnly: true
 
+            - name: harbor-ca
+              mountPath: /etc/harbor-ca
+              readOnly: true
+
           readinessProbe:
             httpGet:
               path: /health
@@ -78,3 +82,7 @@ spec:
         - name: cosign-public-key
           configMap:
             name: image-verifier-config
+
+        - name: harbor-ca
+          configMap:
+            name: harbor-ca

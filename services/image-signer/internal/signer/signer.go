@@ -93,6 +93,11 @@ func (s *Signer) HandleEvent(ctx context.Context, payload []byte) error {
 			return fmt.Errorf("resource is missing digest")
 		}
 
+		if strings.Contains(resource.ResourceURL, "@sha256:") {
+			fmt.Printf("ignoring non-image artifact: %s\n", resource.ResourceURL)
+			continue
+		}
+
 		image := fmt.Sprintf(
 			"%s/%s@%s",
 			s.registry,
